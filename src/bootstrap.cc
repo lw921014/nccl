@@ -170,6 +170,10 @@ ncclResult_t bootstrapCreateRoot(ncclUniqueId* id, bool idFromEnv) {
   return ncclSuccess;
 }
 
+// READNOTE : NCCL boost 方法
+// 从这可以看出，其实nccl 不需要用mpi也可以run，
+// 只需要设置环境变量NCCL_COMM_ID（ip：port）
+// 然后在每个节点使用同样的设置就可以
 ncclResult_t bootstrapGetUniqueId(ncclUniqueId* id) {
   static_assert(sizeof(union socketAddress) < sizeof(ncclUniqueId), "NetId does not fit inside ncclUniqueId");
   memset(id, 0, sizeof(ncclUniqueId));
@@ -417,6 +421,12 @@ ncclResult_t bootstrapAllGather(void* commState, void* allData, int size) {
   return ncclSuccess;
 }
 
+// READNOTE : 加入了 tag 和 peer 的 send 方法
+// 在发送数据的时候，增加了 peer 和 tag 作为某次数据发送的标识
+// 这在子通信域中有很大作用
+// 比如在一个rank 可能在2个子通信域中充当了rank
+// 这样在同时发送的时候就会导致链接混乱
+// 加入tag 可以避免这个
 ncclResult_t bootstrapSend(void* commState, int peer, int tag, void* data, int size) {
   struct extState* state = (struct extState*)commState;
   int tmpSendFd;
@@ -429,6 +439,10 @@ ncclResult_t bootstrapSend(void* commState, int peer, int tag, void* data, int s
   return ncclSuccess;
 }
 
+// READNOTE : 实现了子通信域 barrier
+// 实现挺神奇的
+// TODO : 论文研究 (Two Algorithms for Barrier Synchronization)
+//        "Two Algorithms for Barrier Synchronization," International Journal of Parallel Programming, 17(1):1-17, 1988"
 ncclResult_t bootstrapBarrier(void* commState, int *ranks, int rank, int nranks, int tag) {
   if (nranks == 1) return ncclSuccess;
   TRACE(NCCL_INIT, "rank %d nranks %d tag %x - ENTER", rank, nranks, tag);
@@ -450,6 +464,10 @@ ncclResult_t bootstrapBarrier(void* commState, int *ranks, int rank, int nranks,
   return ncclSuccess;
 }
 
+// READNOTE : 使用 all broadcast 实现了子通信域
+// 其中 ranks 是参与 all gather 的rankid 数组，比如[1,3,5,6,7,8]
+// rank 是本rank在ranks中的下标，比如 rank = 2，代表当前 rank 在全局rank 中是ranks[rank] = 3
+// nranks 就是这次子通信域的成员个数
 ncclResult_t bootstrapIntraNodeAllGather(void* commState, int *ranks, int rank, int nranks, void* allData, int size) {
   if (nranks == 1) return ncclSuccess;
   char* data = (char*)allData;
@@ -506,6 +524,18 @@ int unexpectedDequeue(struct extState* state, int peer, int tag, union socketAdd
   }
   return -1;
 }
+
+// READNOTE : 加入tag 和 peer 的recv方法
+// 构建了一个 queue 来存储 不是本想取出的链接 比如 rank 不同或者 tag不同
+// 但是不能认为是无用的，因为很有可能是下次需要的
+// 所以 boostRecv 的流程变成了
+// step 1 : 检查当前链接中是否 rank 和 tag 相同的链接，
+//          如果有，取出 fd，接收数据，关闭fd，结束
+//          如果没有，下一步
+// step 2 : 从监听端口accept 一个链接
+// step 3 : 从上述链接中接收rank 和 tag
+// step 4 : 匹配 rank 和 tag ，如果可以匹配，接收数据，关闭fd，返回
+// step 5 : 如果 不匹配，加入队列，继续 step 2
 
 // We can't know who we'll receive from, so we need to receive everything at once
 ncclResult_t bootstrapRecv(void* commState, int peer, int tag, void* data, int size) {
