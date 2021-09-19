@@ -67,6 +67,8 @@ void dumpData(struct ncclConnect* data, int ndata) {
 
 ncclResult_t ncclTransportP2pSetup(struct ncclComm* comm, struct ncclTopoGraph* graph, int connIndex, int* highestTransportType/*=NULL*/) {
   // Stream used during transport setup; need for P2P pre-connect + CUDA Graph
+  // READNOTE : 非阻塞异步流
+  // 保证这个流不会被 默认流 阻塞
   cudaStream_t transportSetupStream;
   CUDACHECK(cudaStreamCreateWithFlags(&transportSetupStream, cudaStreamNonBlocking));
   int highestType = TRANSPORT_P2P;  // track highest transport type
@@ -96,6 +98,7 @@ ncclResult_t ncclTransportP2pSetup(struct ncclComm* comm, struct ncclTopoGraph* 
       }
     }
 
+    // READNOTE : 是不是只有 nranks == 2 的时候才会出现这个问题
     if (sendPeer == recvPeer) {
       if (recvChannels+sendChannels) {
          NCCLCHECK(bootstrapSend(comm->bootstrap, recvPeer, bootstrapTag, data, sizeof(struct ncclConnect)*(recvChannels+sendChannels)));

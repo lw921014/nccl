@@ -37,6 +37,8 @@ struct p2pRecvResources {
 #include <sys/types.h>
 
 /* Convert a PCI busId string into a local cudaDev device index (cf. CUDA_VISIBLE_DEVICES) */
+// READNOTE : 需要根据pcie获取device id
+// cudaDeviceGetPCIBusId
 static int busIdToCudaDev(int64_t busId) {
   int ndev;
   if (cudaGetDeviceCount(&ndev) != cudaSuccess)
@@ -65,11 +67,14 @@ ncclResult_t p2pCanConnect(int* ret, struct ncclTopoSystem* topo, struct ncclTop
   int intermediateRank;
   NCCLCHECK(ncclTopoCheckP2p(topo, info1->busId, info2->busId, ret, NULL, &intermediateRank));
   if (*ret == 0) return ncclSuccess;
+  // READNOTE : P2P 条件很苛刻
+  // 即使是可以通过中介rank联通也不行
   if (intermediateRank != -1) return ncclSuccess;
 
   // Convert the peer's busId into a local cudaDev index (cf. CUDA_VISIBLE_DEVICES)
   int cudaDev1 = busIdToCudaDev(info1->busId);
   int cudaDev2 = busIdToCudaDev(info2->busId);
+  // QUESTION : 这里矛盾，如果通过busid找不到，就要根据cudart判断？是不是太矛盾了？
   if (cudaDev1 == -1 || cudaDev2 == -1) {
 #if CUDART_VERSION >= 10010
     // CUDA 10.1 and later can use P2P with invisible devices.
