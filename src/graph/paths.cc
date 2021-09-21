@@ -18,6 +18,7 @@ struct ncclTopoNodeList {
   int count;
 };
 
+// READNOTE : 找到node 到 [t, id] 这个node的路径
 static ncclResult_t getPath(struct ncclTopoSystem* system, struct ncclTopoNode* node, int t, int64_t id, struct ncclTopoLinkList** path) {
   for (int i=0; i<system->nodes[t].count; i++) {
     if (system->nodes[t].nodes[i].id == id) {
@@ -31,17 +32,22 @@ static ncclResult_t getPath(struct ncclTopoSystem* system, struct ncclTopoNode* 
 
 NCCL_PARAM(NvbDisable, "NVB_DISABLE", 0);
 
+// READNOTE : 设置basenode的 同类型的的路径
+// 设置所有 basenode -> 所有其他 basenode->type 节点的路径
 static ncclResult_t ncclTopoSetPaths(struct ncclTopoNode* baseNode, struct ncclTopoSystem* system) {
   if (baseNode->paths[baseNode->type] == NULL) {
     NCCLCHECK(ncclCalloc(baseNode->paths+baseNode->type, system->nodes[baseNode->type].count));
   }
 
   // breadth-first search to set all paths to that node in the system
+  // READNOTE : ncclTopoNodeList 和 ncclTopoLinkList 是不一样的
+  // 差点看花眼
   struct ncclTopoNodeList nodeList;
   struct ncclTopoNodeList nextNodeList;
   nodeList.count = 1; nodeList.list[0] = baseNode;
   nextNodeList.count = 0;
   struct ncclTopoLinkList* basePath;
+  // 首先找到自己到自己的路
   NCCLCHECK(getPath(system, baseNode, baseNode->type, baseNode->id, &basePath));
   basePath->count = 0;
   basePath->width = LOC_WIDTH;
@@ -131,7 +137,10 @@ static void printNodePaths(struct ncclTopoSystem* system, struct ncclTopoNode* n
       }
       INFO(NCCL_GRAPH, "%s (%f)", line, node->paths[t][n].width);
 #else
-      sprintf(line+offset, "%s/%lX (%d/%f/%s) ", topoNodeTypeStr[t], system->nodes[t].nodes[n].id, node->paths[t][n].count, node->paths[t][n].width, topoPathTypeStr[node->paths[t][n].type]);
+      sprintf(line+offset, "%s/%lX (%d/%f/%s) ", topoNodeTypeStr[t], system->nodes[t].nodes[n].id, 
+                            node->paths[t][n].count,
+                            node->paths[t][n].width,
+                            topoPathTypeStr[node->paths[t][n].type]);
       offset = strlen(line);
 #endif
     }
@@ -151,6 +160,8 @@ ncclResult_t ncclTopoPrintPaths(struct ncclTopoSystem* system) {
   return ncclSuccess;
 }
 
+// READNOTE : 找到距离 [GPU, index = gpu] 最近的CPU
+// 返回是cpu的index
 static ncclResult_t getLocalCpu(struct ncclTopoSystem* system, int gpu, int* retCpu) {
   // Find the closest CPU to a GPU
   int minHops = 0;
@@ -177,9 +188,13 @@ static ncclResult_t addCpuStep(struct ncclTopoSystem* system, int c, int t1, int
 
   int l=0;
   // Node 1 -> CPU
-  for (int i=0; i<srcNode->paths[CPU][c].count; i++) srcNode->paths[t2][i2].list[l++] = srcNode->paths[CPU][c].list[i];
+  for (int i=0; i<srcNode->paths[CPU][c].count; i++) {
+    srcNode->paths[t2][i2].list[l++] = srcNode->paths[CPU][c].list[i];
+  }
   // CPU -> Node 2
-  for (int i=0; i<cpuNode->paths[t2][i2].count; i++) srcNode->paths[t2][i2].list[l++] = cpuNode->paths[t2][i2].list[i];
+  for (int i=0; i<cpuNode->paths[t2][i2].count; i++) {
+    srcNode->paths[t2][i2].list[l++] = cpuNode->paths[t2][i2].list[i];
+  }
 
   // Update path characteristics
   srcNode->paths[t2][i2].count = l;
@@ -418,12 +433,20 @@ ncclResult_t ncclTopoComputePaths(struct ncclTopoSystem* system, struct ncclPeer
   return ncclSuccess;
 }
 
+// QUESTION : 不太懂domains这个的含义
 ncclResult_t ncclTopoTrimSystem(struct ncclTopoSystem* system, struct ncclComm* comm) {
   int *domains;
   int64_t *ids;
   NCCLCHECK(ncclCalloc(&domains, system->nodes[GPU].count));
   NCCLCHECK(ncclCalloc(&ids, system->nodes[GPU].count));
   int myDomain = 0;
+  //  domains 0   1    2    3    4     5     6     7
+  // g = 0 :  0
+  // g = 1 :      0
+  // g = 2 :           0
+  // g = 3 :                0
+  // g = 4 :                     4
+
   for (int g=0; g<system->nodes[GPU].count; g++) {
     struct ncclTopoNode* gpu = system->nodes[GPU].nodes+g;
     domains[g] = g;

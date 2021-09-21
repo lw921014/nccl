@@ -712,6 +712,8 @@ float speedArrayInter[] = { 48.0, 30.0, 24.0, 22.0, 18.0, 15.0, 12.0, 10.0, 9.0,
 #define NSPEEDSINTRA (sizeof(speedArrayIntra)/sizeof(float))
 #define NSPEEDSINTER (sizeof(speedArrayInter)/sizeof(float))
 
+// QUESTION : 这个是核心搜索方法，一直不明白搜索的核心思想啥
+// 不知道是否真的需要
 ncclResult_t ncclTopoCompute(ncclTopoSystem* system, struct ncclTopoGraph* graph) {
   int ngpus = system->nodes[GPU].count;
   int crossNic = (system->nodes[NET].count > 1) && graph->crossNic ? 1 : 0;

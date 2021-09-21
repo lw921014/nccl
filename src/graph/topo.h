@@ -66,6 +66,8 @@ struct ncclTopoLink {
 #define NCCL_TOPO_MAX_LINKS 32
 #define NCCL_TOPO_MAX_HOPS (NCCL_TOPO_MAX_NODES*NCCL_TOPO_NODE_TYPES)
 
+// READNOTE : 一条路径：用link的集合标识
+// count == 0 表示没有路径
 struct ncclTopoLinkList {
   struct ncclTopoLink* list[NCCL_TOPO_MAX_HOPS];
   int count;
@@ -107,19 +109,31 @@ struct ncclTopoNode {
       uint64_t device;
     }pci;
   };
+  // READNOTE : 记录从自己这边出去的link
+  // 特别的: 第一条 link 就是自己到子的 link
+  // 特别的: 这里的 link 都是按照width降序排列的，
+  // 可能在后续搜索的时候方便计算
   int nlinks;
   struct ncclTopoLink links[NCCL_TOPO_MAX_LINKS];
+
   // Pre-computed paths to GPUs and NICs
+  // READNOTE : 是一个二维数组，保存了这个node 到系统中所有点的路径
+  // 使用paths[type][index]表示：当前node 到 系统 [type][index]这node的路径
+  // ncclTopoSetPaths 这个函数中申请了空间
+  // ( ]前开后闭合型的，addCpuStep这个函数可以证明，也符合常理
   struct ncclTopoLinkList* paths[NCCL_TOPO_NODE_TYPES];
   // Used during search
   uint64_t used;
 };
 
+// READNOTE : 单机节点的集合
+// 单机上每种类型的节点最多只能有256个
 struct ncclTopoNodeSet {
   int count;
   struct ncclTopoNode nodes[NCCL_TOPO_MAX_NODES];
 };
 
+// READNOTE : 系统中各种节点的集合
 struct ncclTopoSystem {
   struct ncclTopoNodeSet nodes[NCCL_TOPO_NODE_TYPES];
   float maxWidth;
@@ -141,6 +155,7 @@ ncclResult_t ncclTopoGetXmlFromGraphs(int ngraphs, struct ncclTopoGraph** graphs
 
 ncclResult_t ncclTopoGetCompCap(struct ncclTopoSystem* system, int* ccMin, int* ccMax);
 
+// READNOTE : [type，id] -> [type，index]
 static ncclResult_t ncclTopoIdToIndex(struct ncclTopoSystem* system, int type, int64_t id, int* index) {
   *index = -1;
   for (int i=0; i<system->nodes[type].count; i++) {
@@ -152,6 +167,7 @@ static ncclResult_t ncclTopoIdToIndex(struct ncclTopoSystem* system, int type, i
   return ncclInternalError;
 }
 
+// READNOTE : [rank] -> [GPU，index]
 static ncclResult_t ncclTopoRankToIndex(struct ncclTopoSystem* system, int rank, int* index) {
   *index = -1;
   for (int i=0; i<system->nodes[GPU].count; i++) {

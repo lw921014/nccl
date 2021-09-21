@@ -85,6 +85,8 @@ enum ncclNvLinkDeviceType {
   ncclNvLinkDeviceBridge, // IBM/Power NVLink bridge (Device 04ea)
 };
 
+// READNOTE : 在拓扑系统中找到类型为type，id 为id的节点
+// 基本上给定二元组 [type, id] 就可以唯一确定一个节点
 ncclResult_t ncclTopoGetNode(struct ncclTopoSystem* system, struct ncclTopoNode** node, int type, uint64_t id) {
   for (int i=0; i<system->nodes[type].count; i++) {
     if (system->nodes[type].nodes[i].id == id) {
@@ -95,6 +97,7 @@ ncclResult_t ncclTopoGetNode(struct ncclTopoSystem* system, struct ncclTopoNode*
   return ncclSuccess;
 }
 
+// READNOTE : 创建一个 [type, id] 的节点
 ncclResult_t ncclTopoCreateNode(struct ncclTopoSystem* system, struct ncclTopoNode** node, int type, uint64_t id) {
   if (system->nodes[type].count == NCCL_TOPO_MAX_NODES) {
     WARN("Error : tried to create too many nodes of type %d", type);
@@ -126,18 +129,28 @@ ncclResult_t ncclTopoCreateNode(struct ncclTopoSystem* system, struct ncclTopoNo
   return ncclSuccess;
 }
 
+// READNOTE : 在拓扑系统中删除 类型为type 的第index个节点
+// 由于节点的集合是用数组标识的，所以这里的index标识的的数组的下标
+// 不是 node 的id
 ncclResult_t ncclTopoRemoveNode(struct ncclTopoSystem* system, int type, int index) {
   struct ncclTopoNode* delNode = system->nodes[type].nodes+index;
   for (int t=0; t<NCCL_TOPO_NODE_TYPES; t++) {
+    // READNOTE : 释放所有的path
     free(delNode->paths[t]);
+
+    // READNOTE : 释放所有的link
     for (int n=0; n<system->nodes[t].count; n++) {
       struct ncclTopoNode* node = system->nodes[t].nodes+n;
       if (node == delNode) continue;
       for (int l=0; l<node->nlinks; l++) {
         while (l<node->nlinks && node->links[l].remNode == delNode) {
+          // READNOTE : 相比将memcpy，memmove可以保证重叠区域的mem更加安全
+          // 这也就是使用数组标识链表的不好之处，不方便删除
+          // QUESTION : 使用while是考虑消除相同的链接，这样的链接是啥时候会存在
           memmove(node->links+l, node->links+l+1, (node->nlinks-l-1)*sizeof(struct ncclTopoLink));
           node->nlinks--;
         }
+        // QUESTION : node->links[l].remNode-- 这个操作是啥意思
         if (l<node->nlinks && node->links[l].remNode->type == type && node->links[l].remNode >= delNode) {
           node->links[l].remNode--;
         }
@@ -149,6 +162,8 @@ ncclResult_t ncclTopoRemoveNode(struct ncclTopoSystem* system, int type, int ind
   return ncclSuccess;
 }
 
+// READNOTE : 给node 添加一个 node 到 remNode 的link
+// 这里的带宽是叠加的，我猜测应该 nvlink的带宽是可以的叠加的
 ncclResult_t ncclTopoConnectNodes(struct ncclTopoNode* node, struct ncclTopoNode* remNode, int type, float width) {
   // Aggregate links into higher width for NVLink
   struct ncclTopoLink* link;
