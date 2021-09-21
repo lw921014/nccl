@@ -178,6 +178,7 @@ ncclResult_t p2pSendSetup(struct ncclComm* comm, struct ncclTopoGraph* graph, st
   int sendSize = sizeof(struct ncclSendMem);
   // For P2P Read the SIMPLE buffer is tagged on the end of the ncclSendMem structure
   if (info.read) sendSize += send->comm->buffSizes[NCCL_PROTO_SIMPLE];
+  // READNOTE : ipc 最小单元为2M
   ALIGN_SIZE(sendSize, CUDA_IPC_MIN);
 
   resources->remoteId = -1;

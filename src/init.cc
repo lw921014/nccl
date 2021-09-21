@@ -40,6 +40,7 @@ std::chrono::high_resolution_clock::time_point ncclEpoch;
 
 const char* ncclFuncStr[NCCL_NUM_FUNCTIONS] = { "Broadcast", "Reduce", "AllGather", "ReduceScatter", "AllReduce" };
 const char* ncclAlgoStr[NCCL_NUM_ALGORITHMS] = { "Tree", "Ring", "CollNet" };
+// QUESTION : 这些协议是不是标准数据TLV协议，必要性在哪里？
 const char* ncclProtoStr[NCCL_NUM_PROTOCOLS] = { "LL", "LL128", "Simple" };
 
 NCCL_PARAM(GroupCudaStream, "GROUP_CUDA_STREAM", NCCL_GROUP_CUDA_STREAM);
@@ -147,6 +148,8 @@ NCCL_PARAM(CollNetEnable, "COLLNET_ENABLE", 0);
 
 pthread_mutex_t initLock = PTHREAD_MUTEX_INITIALIZER;
 static bool initialized = false;
+// READNOTE : 获取所有核函数的最大locla mem大小
+// QUESTION : 是一个很好的优化策略，但是不知道为啥
 static size_t maxLocalSizeBytes = 0;
 static ncclResult_t ncclInit() {
   if (initialized) return ncclSuccess;
@@ -283,6 +286,7 @@ static ncclResult_t commAlloc(ncclComm_t* comret, int ndev, int rank) {
   comm->groupCudaStream = ncclParamGroupCudaStream();
 #else
   // Don't allow the user to overload the default setting in older CUDA builds
+  // QUESTION : 不懂这个这个是啥意思
   comm->groupCudaStream = NCCL_GROUP_CUDA_STREAM;
 #endif
   comm->fatalError = ncclSuccess;
@@ -294,6 +298,8 @@ static ncclResult_t commAlloc(ncclComm_t* comret, int ndev, int rank) {
   comm->argsptr = &comm->args;
   comm->collNetSupport = 0;
 
+// QUESTION : 不明白 SHORTEST_QUEUE 和 ROUND_ROBIN 是啥意思
+// ROUND_ROBIN : 轮训队列，保证每个都调度到，和权重无关
   NCCLCHECK(ncclCalloc(&comm->asyncOps, NCCL_MAX_OPS));
   comm->asyncOpCount = 0;
   comm->asyncTotalSize = 0;
@@ -538,9 +544,11 @@ static ncclResult_t initTransportsRank(struct ncclComm* comm, ncclUniqueId* comm
   NCCLCHECK(fillInfo(comm, myInfo, commHash));
   NCCLCHECK(bootstrapAllGather(comm->bootstrap, allGather1Data, sizeof(*allGather1Data)));
 
+// READNOTE : 额外考虑了collnet
   NCCLCHECK(ncclCalloc(&comm->peerInfo, nranks+1)); // Extra rank to represent CollNet root
   for (int i = 0; i < nranks; i++) {
     memcpy(comm->peerInfo+i, &allGather1Data[i].peerInfo, sizeof(struct ncclPeerInfo));
+    // READNOTE : 可以看出机内的从硬件上是使用pcie的bdf标识GPU的
     if ((i != rank) && (comm->peerInfo[i].hostHash == myInfo->hostHash) && (comm->peerInfo[i].busId == myInfo->busId)) {
       WARN("Duplicate GPU detected : rank %d and rank %d both on CUDA device %lx", rank, i, myInfo->busId);
       return ncclInvalidUsage;

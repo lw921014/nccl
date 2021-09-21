@@ -37,6 +37,8 @@ static long log2i(long n) {
  return l;
 }
 
+// TODO : 需要研究一下这个可回收队列的用法
+// READNOTE : 可以避免重复开辟和释放内存（问孙鹏）
 // Recyclable list that avoids frequent malloc/free
 template<typename T>
 struct ncclListElem {

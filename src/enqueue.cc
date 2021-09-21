@@ -109,6 +109,9 @@ static void* const ncclKerns[1+ncclNumTypes+NCCL_NUM_FUNCTIONS*ncclNumDevRedOps*
 };
 
 // Determine the maximum kernel stack size of all CUDA kernels
+// READNOTE : 获取核函数属性的api
+// localSizeBytes : 核函数的每个线程使用的最大的local mem大小
+// 这么看来，这个函数的功能是获取所有 nccl 核函数的最大的localmem大小
 size_t ncclKernMaxLocalSize() {
   ncclResult_t res = ncclSuccess;
   int numNcclKerns = sizeof(ncclKerns)/sizeof(ncclKerns[0]);
