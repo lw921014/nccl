@@ -12,6 +12,7 @@ enum ncclDevRedOp_t {
   ncclDevPreMulSum, ncclDevSumPostDiv,
   ncclNumDevRedOps
 };
+// QUESTION : scalarArgIsPtr 这个参数是啥意思？
 struct ncclDevRedOpFull {
   ncclDevRedOp_t op;
   bool scalarArgIsPtr;

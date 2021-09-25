@@ -11,6 +11,7 @@
 #include "devcomm.h"
 #include "collectives.h"
 
+// QUESTION : 实在是不知道这些pattern是啥意思，很模糊
 typedef enum {
   ncclPatternRing,
   ncclPatternRingTwice,

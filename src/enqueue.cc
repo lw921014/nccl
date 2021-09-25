@@ -1253,6 +1253,8 @@ ncclResult_t ncclEnqueueCheck(struct ncclInfo* info) {
     // Check whether we are in cuda graph mode
     cudaGraph_t graph;
     ncclComm_t comm = info->comm;
+    // READNOTE : 在cuda 11.3 之后才支持，所以先不考虑
+    // 可以默认为是非cudagraph模式
     NCCLCHECKGOTO(ncclGetCudaGraph(comm, &graph), ret, end);
 
     // Common part between graph mode and non-graph mode

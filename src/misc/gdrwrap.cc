@@ -49,6 +49,7 @@ pthread_mutex_t gdrLock = PTHREAD_MUTEX_INITIALIZER;
     *cast = tmp;                                         \
   } while (0)
 
+// QUESTION : 感觉GDR是不没有用到
 ncclResult_t wrap_gdr_symbols(void) {
   if (gdrState == gdrInitialized)
     return ncclSuccess;

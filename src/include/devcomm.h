@@ -120,7 +120,7 @@ struct ncclRing {
   int index; // This rank's index in the ring
 };
 
-
+// QUESTION : ARITY 是啥意思？
 #define NCCL_MAX_TREE_ARITY 3
 struct ncclTree {
   int depth;
@@ -153,6 +153,7 @@ struct ncclDevComm;
 /* ncclWork is to be a power of two, currently 8x64 bytes, */
 /* to make sure reads to host from the CUDA kernel are aligned. */
 /* Make sure to adjust padding at the end of ncclWorkElem. */
+// QUESTION : active是啥意思？
 struct ncclWorkElem {
   // Header
   struct ncclDevComm* comm;

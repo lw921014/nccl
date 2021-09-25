@@ -90,6 +90,8 @@ ncclResult_t ncclAsyncInit(ncclInitFunc_t func, ncclComm_t* newcomm, int ndev, n
   return ncclSuccess;
 }
 
+// READNOTE : 从这里看出来 异步执行是以comm为单位的
+// QUESTION : 那是不是会在comm 中并行执行多个reduce op
 ncclResult_t ncclAsyncColl(ncclComm_t comm) {
   struct ncclAsyncArgs* args = ncclGroupArgs;
   for (int i=0; i<ncclGroupIndex; i++) {

@@ -103,10 +103,15 @@ enum proxyMode {
   proxyTo = 2
 };
 
+// READNOTE : 生产者
 ncclResult_t ncclProxySaveColl(struct ncclProxyArgs* args, int nranks);
 ncclResult_t ncclProxyComputeP2p(struct ncclInfo* info, struct ncclProxyArgs* args);
 ncclResult_t ncclProxySaveP2p(struct ncclComm* comm, struct ncclProxyArgs* args);
+
+// READNOTE : 触发消费者开始消费
 ncclResult_t ncclProxyStart(struct ncclComm* comm);
+
+// // READNOTE : 消费者
 ncclResult_t ncclProxyCreate(struct ncclComm* comm);
 ncclResult_t ncclProxyDestroy(struct ncclComm* comm);
 

@@ -109,6 +109,10 @@ struct ncclComm {
   int intraNodeRank;
   int8_t* rankToIntraNodeRank;
 
+// QUESTION : userStreamSet 这个参数是啥意思？
+// 莫非就是把用户传进来的stream 记录下来，在某种操作的时候使用这个？
+// launchMode : 默认是 PARALLEL 模式
+// QUESTION : 但是不知道 PARALLEL 模式是啥意思
   enum { GROUP, PARALLEL, GROUP_GRAPH } launchMode;
   cudaStream_t userStream;
   bool userStreamSet;
