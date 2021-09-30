@@ -180,6 +180,9 @@ struct ncclComm {
   int intraHighestTransportType;
 
   // Store info of async operations
+  // READNOTE : 每次调用group start的时候会
+  // 渗透到 ncclSaveAsyncColl 这个函数，将 ncclinfo 保存起来
+  // 在group end 的时候会进行计算
   struct ncclInfo* asyncOps;
   int asyncOpCount;
   size_t asyncTotalSize;

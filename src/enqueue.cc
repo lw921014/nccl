@@ -796,6 +796,8 @@ static ncclResult_t ncclSaveAsyncColl(struct ncclInfo* info) {
   }
   memcpy(comm->asyncOps+comm->asyncOpCount, info, sizeof(struct ncclInfo));
   comm->asyncOpCount++;
+  // QUESTION : 为啥我感觉这个nbytes只有在sendrecv的时候才被设置了？
+  // 这样的话是不是在这里 asyncTotalSize 始终是 0 ？
   comm->asyncTotalSize += info->nBytes;
   return ncclSuccess;
 }
@@ -806,6 +808,7 @@ static ncclResult_t ncclSaveP2p(struct ncclInfo* info) {
   struct ncclComm* comm = info->comm;
   int peer = info->root;
   ssize_t nBytes = info->count*ncclTypeSize(info->datatype);
+
   if (info->opName[0] == 'S') { // Send
     if (peer != comm->rank) {
       int delta = (comm->nRanks - (comm->rank-peer)) % comm->nRanks;

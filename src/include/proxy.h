@@ -25,6 +25,8 @@ struct ncclProxySubArgs {
   ssize_t recvbytes;
   int sendChunkSize;
   int recvChunkSize;
+  // READNOTE : 这个delta 可能是相对于 当前 rank 一个偏移
+  // 貌似只用在send recv中，在group.cc 中使用
   int delta;
 
   // Internal state

@@ -194,6 +194,7 @@ ncclResult_t ncclGroupEnd() {
     }
   }
 
+// QUESTION : 这个预链接的必要性是啥
   for (int i=0; i<ncclGroupIndex; i++) {
     struct ncclAsyncArgs* args = ncclGroupArgs+i;
     if (args->funcType == ASYNC_FUNC_COLL && args->coll.comm->connect) {

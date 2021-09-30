@@ -41,11 +41,18 @@ struct ncclInfo {
   int sliceSteps;
   // Computed later
   ncclDevRedOpFull opFull;
+  
+  // READNOTE : 在 getAlgoInfo 中计算
+  // READNOTE : 在 getPatternInfo 中计算
   int algorithm;
   int protocol;
   ncclPattern_t pattern;
   int nChannels;
   int nThreads;
+
+  // READNOTE : 在 getLoopInfo 中计算
+  // 其中 nstepsPerLoop 和 nstepsPerLoop 是根据pattern计算出来的
+  // nBytes = info->count*ncclTypeSize(info->datatype)
   size_t nBytes;
   int nstepsPerLoop;
   int nchunksPerLoop;

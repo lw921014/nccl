@@ -121,6 +121,7 @@ struct ncclRing {
 };
 
 // QUESTION : ARITY 是啥意思？
+// QUESTION : 为啥是3,不应该是二叉树么？
 #define NCCL_MAX_TREE_ARITY 3
 struct ncclTree {
   int depth;
