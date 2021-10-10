@@ -16,12 +16,14 @@
 // Define min for ssize_t
 static __device__ int min(int a, ssize_t b) { return (a < b) ? a : b; }
 
+// QUESTION : 确实不知道这个汇编要如何写
 template <typename T>
 inline __device__ void loadPtr(void** ptr, T* &v) {
   asm volatile("ld.volatile.global.u64 %0, [%1];"
       : "=l"(v) : "l"(ptr));
 }
 
+// QUESTION : 为啥要定义为uint64_t
 typedef uint64_t PackType;
 
 template<typename Fn>
@@ -332,6 +334,7 @@ struct MULTI<FUNC, double> {
   static_assert(sizeof(PackType) == sizeof(double),
       "PackType must be the same size as double.");
   __device__ PackType operator()(FUNC fn, const PackType x, const PackType y) const {
+    // QUESTION : __longlong_as_double是个啥函数
     double rv = fn(__longlong_as_double(x), __longlong_as_double(y));
     return __double_as_longlong(rv);
   }
@@ -411,11 +414,13 @@ struct MULTI<FUNC, int64_t> {
   }
 };
 
+// READNOTE : 取出一个指针中的值
 template<typename T> inline __device__
 T vFetch(const volatile T* ptr) {
   return *ptr;
 }
 
+// READNOTE : 将一个值存储到指针中的位置
 template<typename T> inline __device__
 void vStore(volatile T* ptr, const T val) {
   *ptr = val;
@@ -486,6 +491,7 @@ inline __device__ void Store128(Pack128* p, Pack128& v) {
   asm volatile("st.volatile.global.v2.u64 [%0], {%1,%2};" :: "l"(p), "l"(v.x), "l"(v.y) : "memory");
 }
 
+// QUESTION : __forceinline__ 这个关键词是啥意思
 template<class FUNC, typename T, int UNROLL, int MINSRCS, int MAXSRCS, int MINDSTS, int MAXDSTS, int PreOpN, typename Int>
 __device__ __forceinline__ void ReduceCopyMulti(const int w, const int nw, const int t,
     uint64_t* redOpArgs, bool postOp, int nsrcs, const T** s, int ndsts, T** d, const int elemOffset, const Int Nelem
@@ -625,6 +631,7 @@ __device__ int ptrAlign128(T* ptr) { return (uint64_t)ptr % alignof(Pack128); }
 
 #define PACKELEMS (sizeof(Pack128) / sizeof(T))
 
+// QUESTION : 忘记了unroll是展开还是不展开了
 template<int UNROLL, class FUNC, typename T, int MINSRCS, int MAXSRCS, int MINDSTS, int MAXDSTS, int PreOpN, typename Int>
 __device__ __forceinline__ void ReduceOrCopyMulti(
     const int tid, const int nthreads, uint64_t* redOpArgs, bool postOp, int nsrcs, const T** srcs, int ndsts, T** dsts, Int N

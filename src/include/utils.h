@@ -80,6 +80,7 @@ class ncclRecyclableList {
     return ncclSuccess;
   }
 
+// READNOTE : 专门为遍历使用的
   T* begin() {
     if (head == NULL || head == tail) return NULL;
     cursor = head->next;
@@ -96,6 +97,7 @@ class ncclRecyclableList {
     return rv;
   }
 
+// READNOTE : 在每一次reset kernel 的时候会调用
   // Recycle the list without freeing the space
   void recycle() {
     tail = cursor = head;

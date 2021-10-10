@@ -11,7 +11,7 @@
 #include "common_kernel.h"
 #include <limits>
 #include <type_traits>
-
+// TODO : 确实要好好研究一下type_traits了
 template<typename T>
 struct FuncNull {
   __device__ FuncNull(uint64_t opArg=0) {}
@@ -20,6 +20,7 @@ struct FuncNull {
   }
 };
 
+// QUESTION : 构造函数中的opArg不知道是啥意思
 template<typename T>
 struct FuncSum {
   __device__ FuncSum(uint64_t opArg=0) {}
@@ -63,6 +64,7 @@ struct FuncTraits { // generic implementation for FuncSum,Prod,Min,Max
   __device__ static T postOp(Fn, T x) { return x; }
 };
 
+// READNOTE : 4个char一起做加法，还是挺巧妙的
 #define MASK0 0x00ff00ff
 #define MASK1 0xff00ff00
 static __device__ uint32_t addChar4(const uint32_t x, const uint32_t y) {
