@@ -138,6 +138,12 @@ ncclResult_t dumpProxyState(struct ncclProxyState* state) {
   return ncclSuccess;
 }
 
+// READNOTE : 将一个参数 args 合并到 state中
+// 分两种情况
+// 第一种情况: 如果没有相同的 peer , 那么就直接插入到 state->ops 列表的尾巴
+// 第二种情况: 如果有相同的 peer 在running
+//      如果有共享的链接， 那么就把自己的nsubs中的参数和当前的合并为一个nsubs
+//      如果没有共享的链接，就记录到 proxyAppend->nextPeer 指针中，同时修改 args->proxyAppendPtr 
 static ncclResult_t ProxyAppend(struct ncclProxyState* state, struct ncclProxyArgs* args) {
   struct ncclProxyArgs* proxyAppend = *args->proxyAppendPtr;
   int shared = args->subs[0].connector->conn.shared;
@@ -157,7 +163,10 @@ static ncclResult_t ProxyAppend(struct ncclProxyState* state, struct ncclProxyAr
       }
       memcpy(proxyAppend->subs+proxyAppend->nsubs, args->subs, sizeof(struct ncclProxySubArgs));
       proxyAppend->nsubs++;
+      // QUESTION : 这句代码是不没有啥用？
       args->next = proxyAppend->next;
+
+      // READNOTE : 相当于把 args 插入到 poolFreed 这个列表的头部
       // Free args as we merged them
       args->next = state->poolFreed;
       state->poolFreed = args;
@@ -362,6 +371,11 @@ static ncclResult_t progressOps(struct ncclProxyState* state, struct ncclProxyAr
 
 ncclResult_t ncclProxyAppendPosted(struct ncclProxyState* state) {
   // Return any freed element first
+  // READNOTE : 这个对 poolFreed 和 poolReturned 做了一种合并操作
+  // 本质上相当于将 poolFreed 插入到 poolReturned 的头部，然后清空 poolReturned
+  // 第一步：将 poolReturned 合并到 poolFreed 上，形成新的链表 tmp
+  // 第二步：将 poolReturned 指向 tmp
+  // 第三步：将 poolFreed 指向空
   if (state->poolFreed) {
     struct ncclProxyArgs* end = state->poolFreed;
     while (end->next) end = end->next;
