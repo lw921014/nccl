@@ -173,6 +173,9 @@ void* persistentThread(void *comm_) {
   int idle = 1;
   int idleSpin = 0;
   while (1) {
+    // READNOTE : 如果 state->ops 是空，那么久循环一直等待
+    // 如果不是空，就等待 state->cond 这个条件变量触发，典型的生产者消费者模式
+    // 只不过需要判断 是否中断或者stop，因而增加了一些代码
     do {
       if (*comm->abortFlag) return NULL;
       if (op == NULL) {
@@ -189,6 +192,8 @@ void* persistentThread(void *comm_) {
         pthread_mutex_unlock(&state->mutex);
       }
     } while (op == NULL);
+
+    // READNOTE : 参考 http://wiki.baidu.com/pages/viewpage.action?pageId=1677494499
     op->idle = 0;
     // opCount >= lastOpCount are part of an ongoing GroupStart/GroupEnd that hasn't started
     // yet and might be cancelled before they even start. Hold on on those.

@@ -45,6 +45,8 @@ struct ncclProxyState {
   pthread_cond_t cond;
   pthread_mutex_t mutex;
   bool stop;
+  // READNOTE : ops 存储了需要处理的列表
+  // pool 是存储了处理过的列表，也就是每次把ops中的处理过的args都会从头插入到pool中
   struct ncclProxyArgs* ops;
   struct ncclProxyArgs* pool;
   struct ncclProxyPool* pools;
