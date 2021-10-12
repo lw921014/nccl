@@ -27,6 +27,7 @@ static bool NeedProxy(int type, int pattern, int root, struct ncclRing* ring, in
 
 enum { proxyRecv=0, proxySend=1 };
 
+// READNOTE : 内存池设计
 #define PROXYARGS_ALLOCATE_SIZE 32
 struct ncclProxyPool {
   struct ncclProxyPool *next;

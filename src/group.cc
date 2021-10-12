@@ -91,6 +91,11 @@ ncclResult_t ncclAsyncInit(ncclInitFunc_t func, ncclComm_t* newcomm, int ndev, n
   return ncclSuccess;
 }
 
+// READNOTE : 这里只保存了comm，也就是说其实异步执行是以comm为单位的
+// MAX_ASYNC_OPS这个参数表明了异步执行的最大容量，是以comm为单位的，
+// 不是以coll op为单位的，也就是说你有很多个coll op，但是都是在一个comm下的
+// 那其实coll op的大小也可以超过 MAX_ASYNC_OPS 个数
+// QUESTION : 从这个意义上讲，是不是 应该 MAX_ASYNC_OPS 改为 MAX_ASYNC_COMMS
 ncclResult_t ncclAsyncColl(ncclComm_t comm) {
   struct ncclAsyncArgs* args = ncclGroupArgs;
   for (int i=0; i<ncclGroupIndex; i++) {

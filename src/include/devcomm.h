@@ -95,6 +95,7 @@ struct ncclConnInfo {
 
 struct ncclConnector {
   int connected;
+  // READNOTE : proxyAppend 实际上记录了同一个peer链表的尾巴
   struct ncclProxyArgs *proxyAppend;
   struct ncclTransportComm* transportComm;
   void* transportResources; // Host-side resources

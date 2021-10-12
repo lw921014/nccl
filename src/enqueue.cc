@@ -341,6 +341,7 @@ static ncclResult_t computeColl(struct ncclInfo* info /* input */, struct ncclCo
   if (info->coll == ncclCollSendRecv) {
     coll->args.p2p.sendCount = info->sendbytes;
     coll->args.p2p.recvCount = info->recvbytes;
+    // QUESTION : info->delta 这个参数好像不知道在哪里设置的
     coll->args.p2p.delta = info->delta;
     coll->funcIndex = FUNC_INDEX_P2P;
     coll->args.p2p.nThreads = info->nThreads = info->comm->maxThreads[NCCL_ALGO_RING][NCCL_PROTO_SIMPLE]+2*WARP_SIZE;
@@ -494,7 +495,12 @@ ncclResult_t ncclSaveP2p(struct ncclInfo* info) {
   p2plist->count++;
   ssize_t nBytes = info->count*ncclTypeSize(info->datatype);
   if (info->recvbuff == NULL) {
+    // READNOTE : send rank
     if (peer != comm->rank) {
+      // READNOTE : delta 表明 peer和单前rank的距离
+      // 将设rank是组成一个环，0 --> 1 --> 2  --> 3  --> 0
+      // 假设环从0以顺时针方向旋转，那么对于一个peer，delta代表从单前rank出发需要顺时针走
+      // 多少步才能到达peer 
       int delta = (comm->nRanks - (comm->rank-peer)) % comm->nRanks;
       for (int c=0; c<comm->p2pnChannelsPerPeer; c++) {
         int channelId = (delta+comm->p2pChannels[c]) % comm->p2pnChannels;
@@ -506,6 +512,7 @@ ncclResult_t ncclSaveP2p(struct ncclInfo* info) {
     p2plist->peerlist[info->root].sendbytes = nBytes;
     p2plist->peerlist[info->root].sendbuff = info->sendbuff;
   } else {
+    // READNOTE : recv rank
     if (peer != comm->rank) {
       int delta = (comm->nRanks + (comm->rank-peer)) % comm->nRanks;
       for (int c=0; c<comm->p2pnChannelsPerPeer; c++) {
@@ -528,6 +535,7 @@ ncclResult_t ncclEnqueueCheck(struct ncclInfo* info) {
     int savedDev = -1;
     // Check arguments
     NCCLCHECK(PtrCheck(info->comm, info->opName, "comm"));
+    // QUESTION : 这个操作是啥意思，其实不明百checkPointers是啥含义
     if (info->comm->checkPointers) {
       CUDACHECKGOTO(cudaGetDevice(&savedDev), ret, end);
       CUDACHECKGOTO(cudaSetDevice(info->comm->cudaDev), ret, end);

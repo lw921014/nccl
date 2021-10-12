@@ -16,6 +16,7 @@ ncclResult_t ncclSend(const void* sendbuff, size_t count, ncclDataType_t datatyp
     sendbuff, NULL, count, datatype, ncclSum, peer, comm, stream, /* Args */
     1, 1 };
   ncclResult_t ret;
+  // QUESTION : 从这个意义上讲，sendrecv一定是异步的？
   NCCLCHECK(ncclGroupStart());
   ret = ncclEnqueueCheck(&info);
   NCCLCHECK(ncclGroupEnd());

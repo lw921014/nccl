@@ -74,9 +74,13 @@ struct ncclComm {
   int localRanks;
 
   enum { GROUP, PARALLEL } launchMode;
+  // READNOTE : 保证用户传入的流要被保存到userStream，userStreamSet是一个标志变量，标志此操作是否完成
+  // QUESTION : 为啥要这么做，是不是程序中还有其他系统所需要的额外的流
   cudaStream_t userStream;
   bool userStreamSet;
   cudaEvent_t doneEvent;
+  // READNOTE :  需要检查设备指针，比如sendbuf和recvbuf是否在相应的设备上
+  // 通过环境变量CHECK_POINTERS读入，默认为false 
   bool checkPointers;
 
   // Counter to make sure collectives match (needed for bcast/reduce
@@ -87,6 +91,7 @@ struct ncclComm {
   // Channels for collectives
   int nChannels;
   // Channels (per peer) for p2p
+  // QUESTION : ncclTopoComputeP2pChannels 这函数需要研读一下
   int p2pnChannels;
   int p2pnChannelsPerPeer;
   int p2pChannels[MAXCHANNELS];
