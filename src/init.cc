@@ -374,6 +374,8 @@ ncclResult_t ncclCommSetIntra(struct ncclComm* comm, int rank, int ranks, struct
   comm->launchMode = ncclComm::GROUP;
   char* str = getenv("NCCL_LAUNCH_MODE");
   if (str) INFO(NCCL_ENV, "NCCL_LAUNCH_MODE set by environment to %s", str);
+  // READNOTE : 由于intraRanks表示这个主机上和本rank相同进程号的rank数
+  // 因此，如果是单进程单卡的话，默认的模式就是 PARALLEL 模式
   if (comm->intraRanks == 1 || (str && strcmp(str, "PARALLEL") == 0)) {
     comm->launchMode = ncclComm::PARALLEL;
   }
