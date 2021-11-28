@@ -140,10 +140,26 @@ struct ncclSocketRequest {
   void* data;
   int size;
   int ctrlFd;
+
+  // READNOTE : 当用主线程处理数据的时候，用于标识当前发送量的大小，如果offset == size，表示数据发送完成
   int offset;
+
+  // READNOTE : 一共可以取0,1,2三个值
+  //            0: 标识这个req无效或者已经完成，可以放入req的池子中了
+  //            1: 在处理每个req时候，需要先把这个req的size通过 ctrlFd 发送到对法，进行关于数据量的握手确认
+  //               同时可以处理任务拆分了
+  //            2: 表示1已经完成可以检查req是否执行完毕了
   int used;
+
+  // READNOTE : 用于处理传输的comm
   struct ncclSocketComm* comm;
+
+  // READNOTE : 保存了任务地址，和ncclSocketTaskQueue中的地址一一对应
+  // 拆分的原则是:1.将数据量按照socket个数均分 2.最小的chunksize是64K
+  // 便于检查是否这个req对应的task已经完成
   struct ncclSocketTask* tasks[MAX_SOCKETS];
+
+  // READNOTE : 记录了当前的req被拆分为几个task,也就是ncclSocketTask数组的实际大小
   int nSubs;
 };
 
@@ -169,12 +185,30 @@ struct ncclSocketListenComm {
 };
 
 struct ncclSocketComm {
+  // READNOTE : 是主线程的fd，用于交换数据大小，或者在只支持单线程单socket的系统下用于发送数据
   int ctrlFd;
+
+  // READNOTE : 保存了n多个fds
   int fds[MAX_SOCKETS];
+
+  // READNOTE : 记录fds的长度有多长
   int nSocks;
-  int nThreads;
+
+  // READNOTE : 是fds的游动下标，用在拆分成子数据的时候确定使用哪个fds
+  // 同时决定这个socket是由哪个ncclSocketThreadResources线程处理
+  // 可见每个socket链接都唯一且固定由 ncclSocketThreadResources 中的某个线程处理
+  // 但是 ncclSocketThreadResources 中的每个现成可以处理多个socket的数据链接
   int nextFd;
+  
+  int nThreads;
+
+  // READNOTE : 管理传输请求的池子
+  // 用于实现并发
   struct ncclSocketRequest requests[MAX_REQUESTS];
+
+  // READNOTE : 处理子任务的子线程
+  // 每个子线程都是一个消费者
+  // 用于实现流水
   pthread_t helperThread[MAX_THREADS];
   struct ncclSocketThreadResources threadResources[MAX_THREADS];
 };
@@ -182,12 +216,14 @@ struct ncclSocketComm {
 void* persistentSocketThread(void *args_) {
   struct ncclSocketThreadResources* resource = (struct ncclSocketThreadResources*)args_;
   struct ncclSocketComm* comm = resource->comm;
+  // TODO : 研究一下这个threadState是怎么用的
   volatile enum threadState* state = &resource->state;
   struct ncclSocketTaskQueue* myQueue = &resource->threadTaskQueue;
   int nSocksPerThread = comm->nSocks / comm->nThreads;
   while (1) {
     int idle = 1;
     int mark = myQueue->next; // mark newest task seen
+    // QUESTION : 为啥要分两层遍历，这个和一层遍历有啥区别？
     for (int i=0; i<MAX_QUEUE_LEN; i+=nSocksPerThread) {
       int repeat;
       do {
@@ -201,6 +237,7 @@ void* persistentSocketThread(void *args_) {
               return NULL;
             }
             idle = 0;
+            // QUESTION : 这判断是不是有点多余了， 如果r->offset < r->size的话，socketProgress是不会返回的
             if (r->offset < r->size) repeat = 1;
           }
         }
@@ -299,6 +336,7 @@ ncclResult_t ncclSocketListen(int dev, void* opaqueHandle, void** listenComm) {
   return ncclSuccess;
 }
 
+// TODO : opaqueHandle 这ncclSocketHandle肯定是需要bootstrap传输过来的，这部分代码需要在主程序中找到
 ncclResult_t ncclSocketConnect(int dev, void* opaqueHandle, void** sendComm) {
   if (dev < 0) { // data transfer socket is based on specified dev
     return ncclInternalError;
@@ -338,6 +376,7 @@ ncclResult_t ncclSocketAccept(void* listenComm, void** recvComm) {
   return ncclSuccess;
 }
 
+// READNOTE : 这个函数的就是实现异步的关键，异步发送和接收其实就是把传输传输参数放置到comm相应的request池子中
 ncclResult_t ncclSocketGetRequest(struct ncclSocketComm* comm, int op, void* data, int size, struct ncclSocketRequest** req) {
   for (int i=0; i<MAX_REQUESTS; i++) {
     struct ncclSocketRequest* r = comm->requests+i;
