@@ -45,7 +45,15 @@ extern const char* topoNodeTypeStr[];
 #define LINK_NET 6
 extern const char* topoLinkTypeStr[];
 
-#define PATH_LOC 0
+// READNOTE : gpu之间的互联类型
+// 参考 https://www.jianshu.com/p/e40059d5c832
+// SYS: 通过QPI（PCIe + QPI总线）跨NUMA node间GPU通信，相当于上上图中的GPU1到
+// NODE: 单个NUMA node内经过Host Bridge PCIe总线通信（一个NUMA node上有多个CPU芯片）,没遇到过这种情况，就不举例子了；
+// PHB: 经过Host Bridge（Root complex中）的PCIe总线通信，同一Root complex下多个PCIe总线，相当于上上图中的GPU1到GPU3；
+// PXB: 跨越多个PCIe Bridge (switch)，但没有经过Host Bridge PCIe总线，相当于上上图中的GPU3到GPU4；
+// PIX: 经过一个PCIe Bridge (switch)通信，即挂载在同一个PCIe Bridge上的GPU卡之间通信，相当于上上图中的GPU1到GPU2；
+// NV#: 使用NVLink通信（后面会介绍）
+
 #define PATH_NVL 1
 #define PATH_PIX 2
 #define PATH_PXB 3
