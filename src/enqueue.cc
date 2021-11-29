@@ -359,6 +359,9 @@ static ncclResult_t computeColl(struct ncclInfo* info /* input */, struct ncclCo
 
   coll->funcIndex = FUNC_INDEX(info->coll, info->op, info->datatype, info->algorithm, info->protocol);
 
+  // READNOTE : chunkSteps 和 sliceSteps 是算法的自定义参数，在集合通信op进入的时候，默认赋予的
+  // 参考 https://github.com/NVIDIA/nccl/blob/v2.7.8-1/src/collectives/all_reduce.cc#L15
+  // 具体的值 参考 https://github.com/NVIDIA/nccl/blob/v2.7.8-1/src/include/collectives.h#L62
   int stepSize   = info->comm->buffSizes[info->protocol]/NCCL_STEPS;
   int chunkSteps = (info->protocol == NCCL_PROTO_SIMPLE && info->algorithm == NCCL_ALGO_RING) ? info->chunkSteps : 1;
   int sliceSteps = (info->protocol == NCCL_PROTO_SIMPLE && info->algorithm == NCCL_ALGO_RING) ? info->sliceSteps : 1;
@@ -402,6 +405,9 @@ static ncclResult_t computeColl(struct ncclInfo* info /* input */, struct ncclCo
   if (info->protocol == NCCL_PROTO_LL) chunkEffectiveSize /= 2;
   if (info->protocol == NCCL_PROTO_LL128) chunkEffectiveSize = (chunkSize / NCCL_LL128_LINEELEMS) * NCCL_LL128_DATAELEMS;
   //if (info->comm->rank == 0) printf("Coll %d, size %ld -> %dx%d, chunkSize %d (algo %d proto%d)\n", info->coll, info->nBytes, info->nChannels, info->nThreads, chunkSize, info->algorithm, info->protocol);
+  // QUESTION : nChannels 和 loop 是啥关系 http://wiki.baidu.com/display/~liuwei88/10+proxy
+  // READNOTE : channel是完成集合通信的最小单元，nchunksPerLoop 准确的含义就是 nchunksPerLoopPerChannel，这样的话代码就可以理解了
+  // READNOTE : nsteps 准确的含义就是 nstepsPerChannel
   int nLoops = (int)(DIVUP(info->nBytes, (((size_t)(info->nChannels))*info->nchunksPerLoop*chunkEffectiveSize)));
   proxyArgs->nsteps = info->nstepsPerLoop * nLoops * chunkSteps;
   proxyArgs->sliceSteps = sliceSteps;

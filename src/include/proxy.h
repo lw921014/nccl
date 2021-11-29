@@ -19,8 +19,14 @@ struct ncclProxyArgs {
   struct ncclChannel* channel;
   struct ncclConnector* connector;
   int sliceSteps;
+
+  // READNOTE : 处理没个chunk需要的step数
   int chunkSteps;
+
+  // READNOTE : nsteps 的含义就是用户指定的发送或者接收大小通过几次buffer可以完全操作完成
+  // 举个例子 : 用户需要接收10M的数据，但是每次buffer的大小只有2M，那么nsteps就是5
   int nsteps;
+
   uint64_t opCount;
   int protocol;
   ncclDataType_t dtype;

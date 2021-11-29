@@ -605,6 +605,7 @@ ncclResult_t ncclIbRegMr(void* comm, void* data, int size, int type, void** mhan
   uint64_t addr = (uint64_t)data;
   assert(size > 0);
 
+  // QUESTION : 不太知道这个对齐的原则是啥
   // Deregister / register
   uint64_t regAddr = addr & (~(REG_ALIGN-1));
   uint64_t regSize = addr+size - regAddr;

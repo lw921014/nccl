@@ -429,6 +429,7 @@ static ncclResult_t socketProgressOpt(int op, int fd, void* ptr, int size, int* 
   return ncclSuccess;
 }
 
+// READNOTE : 异步执行socket函数，直到操作完所有的数据为止
 static ncclResult_t socketProgress(int op, int fd, void* ptr, int size, int* offset) {
   return socketProgressOpt(op, fd, ptr, size, offset, 0);
 }

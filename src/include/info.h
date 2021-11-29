@@ -49,6 +49,7 @@ struct ncclInfo {
   int nchunksPerLoop;
   ssize_t sendbytes;
   ssize_t recvbytes;
+  // QUESTION : 一直不太理解这个delta的含义是啥
   uint32_t delta;
   int channelId;
 };

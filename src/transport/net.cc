@@ -22,9 +22,13 @@ struct netSendResources {
   struct ncclRecvMem* recvMem;
   int netDev;
   int useGdr;
+  // READNOTE : 存放主机和设备内存地址的位置
   char* buffers[LOC_COUNT];
+  // READNOTE : 保存了主机内存和设备内存需要申请的大小
   int buffSizes[LOC_COUNT];
+  // READNOTE : 存放的是RDMA的 mem register 结构体
   void* mhandles[LOC_COUNT];
+  // READNOTE : 将RDMA 的mem register对从主机映射转化为协议映射
   void** mhandlesProto[NCCL_NUM_PROTOCOLS];
   uint64_t step;
   uint64_t llLastCleaning;
@@ -70,11 +74,13 @@ ncclResult_t netSendSetup(struct ncclTopoSystem* topo, struct ncclTopoGraph* gra
   send->conn.head = &resources->sendMem->head;
   for (int i=0; i<NCCL_STEPS; i++) send->conn.fifo[i] = -1;
 
+  // READNOTE : 根据协议类型计算每种协议对应的存储是在主机还是设备
   int protoLoc[NCCL_NUM_PROTOCOLS];
   for (int p=0; p<NCCL_NUM_PROTOCOLS; p++) {
     protoLoc[p] = p != NCCL_PROTO_LL && resources->useGdr ? LOC_DEVMEM : LOC_HOSTMEM;
   }
 
+  // READNOTE : 根据协议类型计算每种协议对应的buffer大小，然后根据协议类型统计一共需要主机内存的大小和设备内存的大小
   int buffSizes[NCCL_NUM_PROTOCOLS];
   for (int p=0; p<NCCL_NUM_PROTOCOLS; p++) {
     // Only allocate buffers for simple for p2p connections
@@ -82,6 +88,7 @@ ncclResult_t netSendSetup(struct ncclTopoSystem* topo, struct ncclTopoGraph* gra
     resources->buffSizes[protoLoc[p]] += buffSizes[p];
   }
 
+  // READNOTE : 根据计算好的主机内存大小和设备内存大小，开始分配内存，并且将指针存放在buffers中
   if (resources->buffSizes[LOC_DEVMEM]) {
     NCCLCHECK(ncclCudaCalloc(resources->buffers+LOC_DEVMEM, resources->buffSizes[LOC_DEVMEM]));
   }
@@ -92,6 +99,7 @@ ncclResult_t netSendSetup(struct ncclTopoSystem* topo, struct ncclTopoGraph* gra
   int offsets[LOC_COUNT];
   offsets[LOC_HOSTMEM] = offsets[LOC_DEVMEM] = 0;
   for (int p=0; p<NCCL_NUM_PROTOCOLS; p++) {
+    // QUESTION : 不太清楚mhandlesProto和mhandles是啥差别
     resources->mhandlesProto[p] = resources->mhandles+protoLoc[p];
     send->conn.buffs[p] = resources->buffers[protoLoc[p]] + offsets[protoLoc[p]];
     offsets[protoLoc[p]] += buffSizes[p];
@@ -107,9 +115,11 @@ ncclResult_t netRecvSetup(struct ncclTopoSystem* topo, struct ncclTopoGraph* gra
   NCCLCHECK(ncclCalloc(&resources, 1));
   recv->transportResources = resources;
 
-  NCCLCHECK(ncclTopoGetNetDev(topo, myInfo->rank, graph, channelId, &resources->netDev));
+  NCCLCHECK(ncclTopoGetNetDev(topo, myInfo->rank, graph, ch~annelId, &resources->netDev));
   NCCLCHECK(ncclTopoCheckGdr(topo, myInfo->busId, resources->netDev, 0, &resources->useGdr));
 
+  // READNOTE : 采用cudaHostAllocMapped分配主机锁页内存，可以使用UVA，让核函数也可以访问到相同的地址，把设备和主机端的传输隐藏掉
+  // 这样在核函数中更新这地址的数据的时候就可以在核函数外面同时看到了
   NCCLCHECK(ncclCudaHostCalloc(&resources->sendMem, 1));
   NCCLCHECK(ncclCudaHostCalloc(&resources->recvMem, 1));
 
@@ -236,6 +246,7 @@ ncclResult_t netSendProxy(struct ncclProxyArgs* args) {
     if (args->head < args->end) {
       int buffSlot = args->tail%NCCL_STEPS;
       if (args->tail < args->end && args->tail < args->head + NCCL_STEPS) {
+        // READNOTE : 在源语模块会更新他们的数值
         volatile int* sizesFifo = resources->recvMem->sizesFifo;
         volatile uint64_t* recvTail = &resources->recvMem->tail;
         if (args->protocol == NCCL_PROTO_LL128) {

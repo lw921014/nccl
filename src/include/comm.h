@@ -30,6 +30,7 @@ struct cudaLaunchParams {
 #define NCCL_LL128_THREAD_THRESHOLD 8
 #define NCCL_SIMPLE_THREAD_THRESHOLD 64
 
+// QUESTION : 为啥要以4KB为单位对齐，而且为啥最后要加1个字节
 struct ncclSendMem {
   union {
     struct {
@@ -43,6 +44,7 @@ struct ncclSendMem {
   char buff[1]; // Actually larger than that
 };
 
+// QUESTION :这个recv对齐的标准是啥
 struct ncclRecvMem {
   union {
     struct {
